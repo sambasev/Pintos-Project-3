@@ -1,31 +1,33 @@
 #include "frame.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
-
 /* Implement Frame table allocator/frame eviction here
    Should happen only once. Inits frame table containing 
    frame_cnt entries. Each entry in the table is a frame_entry
    that contains a pointer to a frame and its associated data
 */
+struct frame_table * fr_table;
 void init_frame_table(size_t frame_cnt)
 {
   //Perform hash table init, struct inits here
+  fr_table = malloc (sizeof(struct frame_table));
   lock_init(&fr_table->lock);
   hash_init(&fr_table->ft, frame_hash, frame_less, NULL);  
-  bitmap_init(&fr_table->bm_frames, frame_cnt);
+  bitmap_init(fr_table->bm_frames, frame_cnt);
 }
 
 /* Gets a physical frame if available and maps it to a page 
    obtained from the user pool
 */
-void *get_frame(enum palloc_flags flags) 
+void *get_frame(int flags UNUSED) 
 {
   //Check bitmap to see if free frame available
   size_t idx = bitmap_scan_and_flip (fr_table->bm_frames, 0, 1, false);
+  void * free_frame;
   //If available, fetch a page from user pool by calling palloc_get_page
   if(idx != BITMAP_ERROR) 
     {
-       void * free_frame = palloc_get_page(PAL_USER);
+       free_frame = palloc_get_page(PAL_USER | PAL_ZERO);
     }
   else 
     {
