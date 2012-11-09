@@ -36,6 +36,7 @@ process_execute (const char *file_name)
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
+  //Get a kernel page
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
@@ -461,7 +462,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      //uint8_t *kpage = palloc_get_page (PAL_USER);
+      uint8_t *kpage = (uint8_t *)get_frame (PAL_USER);
       if (kpage == NULL)
         return false;
 
@@ -496,7 +498,8 @@ setup_stack (void **esp, const char* file_name, char** save_ptr)
   uint8_t *kpage;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = (uint8_t *)get_frame (PAL_USER | PAL_ZERO);
   if (!kpage)
     {
       return success;
