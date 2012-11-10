@@ -1,6 +1,7 @@
 #include "frame.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+
 /* Implement Frame table allocator/frame eviction here
    Should happen only once. Inits frame table containing 
    frame_cnt entries. Each entry in the table is a frame_entry
@@ -13,13 +14,14 @@ void init_frame_table(size_t frame_cnt)
   fr_table = malloc (sizeof(struct frame_table));
   lock_init(&fr_table->lock);
   hash_init(&fr_table->ft, frame_hash, frame_less, NULL);  
-  bitmap_init(fr_table->bm_frames, frame_cnt);
+  //bitmap_init(fr_table->bm_frames, frame_cnt);
+  fr_table->bm_frames = bitmap_create(frame_cnt);
 }
 
 /* Gets a physical frame if available and maps it to a page 
    obtained from the user pool
 */
-void *get_frame(int flags UNUSED) 
+void *get_frame(int flags) 
 {
   //Check bitmap to see if free frame available
   size_t idx = bitmap_scan_and_flip (fr_table->bm_frames, 0, 1, false);
@@ -27,7 +29,7 @@ void *get_frame(int flags UNUSED)
   //If available, fetch a page from user pool by calling palloc_get_page
   if(idx != BITMAP_ERROR) 
     {
-       free_frame = palloc_get_page(PAL_USER | PAL_ZERO);
+       free_frame = palloc_get_page(flags);
     }
   else 
     {
@@ -49,6 +51,14 @@ void *get_frame(int flags UNUSED)
   //Return page address
 }
 
+/* Not sure if this is necessary. Frames should just be
+   allocated and swapped based on demand, never released
+*/
+void release_frame(void *frame)
+{
+  
+}
+
 unsigned frame_hash (const struct hash_elem *p_, void *aux UNUSED)
 {
    const struct frame_entry *f = hash_entry(p_, struct frame_entry, hash_elem);
@@ -65,6 +75,6 @@ bool frame_less (const struct hash_elem *a_, const struct hash_elem *b_, void *a
 void bitmap_init(struct bitmap *bm, size_t frame_cnt)
 {
    bm = bitmap_create (frame_cnt); 
-   bitmap_set(bm, frame_cnt, FALSE);
+//   bitmap_set(bm, frame_cnt, FALSE);
 }
 

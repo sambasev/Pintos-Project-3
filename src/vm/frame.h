@@ -1,3 +1,6 @@
+#ifndef FRAME_H
+#define FRAME_H
+
 #include <hash.h>
 #include <bitmap.h>
 #include "threads/synch.h"
@@ -24,7 +27,9 @@ struct frame_entry {
 
 void init_frame_table (size_t frame_cnt);
 void * get_frame (int palloc_flags);
+void release_frame (void *frame);
 unsigned frame_hash (const struct hash_elem *p_, void *aux);
 bool frame_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux);
 void bitmap_init (struct bitmap *bm, size_t frame_cnt);
 
+#endif
