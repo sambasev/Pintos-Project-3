@@ -11,7 +11,7 @@ struct frame_table {
   struct hash ft; 
   //Used to keep track of free frames
   struct bitmap *bm_frames; 
-  //Required for synchronizing read writes to the frame table
+  /*Required for synchronizing since the frame table is global*/
   struct lock lock;
 };
 

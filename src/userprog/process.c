@@ -20,6 +20,7 @@
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp,
@@ -465,6 +466,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Get a page of memory. */
       //uint8_t *kpage = palloc_get_page (PAL_USER);
       uint8_t *kpage = (uint8_t *)get_frame (PAL_USER);
+      //Update Supplement Page Table
+
       if (kpage == NULL)
         return false;
 
@@ -501,6 +504,7 @@ setup_stack (void **esp, const char* file_name, char** save_ptr)
 
   //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   kpage = (uint8_t *)get_frame (PAL_USER | PAL_ZERO);
+  //Update Supplement Page Table
   if (!kpage)
     {
       return success;
@@ -589,6 +593,7 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+  //Modify supplement page table
 }
 
 
