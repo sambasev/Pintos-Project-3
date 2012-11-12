@@ -453,7 +453,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
-
+  
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
@@ -465,20 +465,28 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Get a page of memory. */
       //uint8_t *kpage = palloc_get_page (PAL_USER);
+	
+      /* Get a page frame. If not successful, swap frames */
       uint8_t *kpage = (uint8_t *)get_frame (PAL_USER);
-      //Update Supplement Page Table
-
-      if (kpage == NULL)
+       if (kpage == NULL)
         return false;
 
-      /* Load this page. */
+      /* If successful, update the Supplemental Page Table (critical resource)*/  
+      struct page *page = map_frame_to_page(kpage, NEW_PAGE); 
+      /* If that was successful, map the physical frame to the page
+         added in the supplemental page table*/
+
+           /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (kpage);
           return false; 
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
+      /* On write to the page - set its dirty bit 
+         How to find the page? */
+      
+      set_page_dirty(page);
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable)) 
         {
@@ -504,11 +512,14 @@ setup_stack (void **esp, const char* file_name, char** save_ptr)
 
   //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   kpage = (uint8_t *)get_frame (PAL_USER | PAL_ZERO);
-  //Update Supplement Page Table
   if (!kpage)
     {
       return success;
     }
+
+  /*Update Supplement Page Table */
+  map_frame_to_page(kpage, NEW_PAGE); 
+  
   success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
   if (success)
     *esp = PHYS_BASE;

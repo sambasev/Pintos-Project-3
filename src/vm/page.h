@@ -2,6 +2,8 @@
 #define PAGE_H
 
 #include <hash.h>
+
+#define NEW_PAGE 1 
 /* Very similar to the frame table entries
    Each thread has its own supplemental page table (spt)
    spt keeps track of all pages accessed/modified by thread
@@ -28,8 +30,12 @@ struct page
    uint8_t accessed; 
 };
 
+ struct page * map_frame_to_page (void *page_frame, int flags);
+ void set_page_accessed(struct page * page);
+ void set_page_dirty(struct page * page);
+
  unsigned page_hash (const struct hash_elem *p_, void *aux);
  bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux);
- struct page * page_lookup (struct sup_page_table *spt, const void *address);
+ struct page * page_lookup (const void *address);
 
 #endif
