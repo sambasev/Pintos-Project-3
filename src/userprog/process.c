@@ -285,6 +285,8 @@ load (const char *file_name, void (**eip) (void), void **esp,
     goto done;
   process_activate ();
 
+  /* Initialize page table */
+  hash_init(&t->page_table, page_hash, page_less, NULL); 
   /* Open executable file. */
   lock_acquire(&filesys_lock);
   file = filesys_open (file_name);

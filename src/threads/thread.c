@@ -97,12 +97,13 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
+  
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  /* Requires thread to be running since hash_init uses malloc*/
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -492,6 +493,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->child_list);
   t->cp = NULL;
   t->parent = NO_PARENT;
+
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
