@@ -18,6 +18,8 @@ struct frame_table {
 struct frame_entry {
   //Pointer to the user page
   void * frame;
+  //Pagedir of the thread that requested the frame - will be used for page eviction
+  uint32_t * pagedir;
   //Use for other info on the frame
   uint8_t unused;
   //Each entry is a hash element in frame table's fr

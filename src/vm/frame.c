@@ -1,6 +1,7 @@
 #include "frame.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+#include "threads/thread.h"
 
 /* Implement Frame table allocator/frame eviction here
    Should happen only once. Inits frame table containing 
@@ -24,16 +25,22 @@ void init_frame_table(size_t frame_cnt)
 void *get_frame(int flags) 
 {
   //Check bitmap to see if free frame available
+  struct thread *t = thread_current();
   size_t idx = bitmap_scan_and_flip (fr_table->bm_frames, 0, 1, false);
   void * free_frame;
   //If available, fetch a page from user pool by calling palloc_get_page
   if(idx != BITMAP_ERROR) 
     {
        free_frame = palloc_get_page(flags);
+       if(!free_frame) 
+	 {
+	   /* Evict frame - shouldn't happen here since we scan 
+		   the bitmap first*/
+         }
     }
   else 
     {
-     //if fetch failed, panic kernel
+     //if fetch failed, PANIC for now. Implement evict later.
        PANIC("out of frames!");
     }
   //else, set the appropriate bit in the ft bitmap (already done)
@@ -44,6 +51,7 @@ void *get_frame(int flags)
        PANIC("Malloc failed:Out of memory!");
     }
   frame->frame = free_frame;
+  frame->pagedir = t->pagedir;
   hash_insert (&fr_table->ft, &frame->hash_elem);
 
   //If bitset, frame used. Else, frame available

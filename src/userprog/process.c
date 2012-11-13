@@ -463,34 +463,43 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+      if(page_read_bytes == PGSIZE) 
+        {
+	  /*Demand paging - allocate a page and point read data to it*/
+        }
+      if(page_zero_bytes == PGSIZE)
+        {
+	  /*Create a new page consisting of all zeroes*/
+        }
       /* Get a page of memory. */
       //uint8_t *kpage = palloc_get_page (PAL_USER);
 	
       /* Get a page frame. If not successful, swap frames */
-      uint8_t *kpage = (uint8_t *)get_frame (PAL_USER);
+      uint8_t *kpage = get_frame (PAL_USER);
        if (kpage == NULL)
         return false;
 
-      /* If successful, update the Supplemental Page Table (critical resource)*/  
+      /* If successful, update the Supplemental Page Table (critical resource)  
+         TODO: Make macro for page->addr */
       struct page *page = map_frame_to_page(kpage, NEW_PAGE); 
       /* If that was successful, map the physical frame to the page
          added in the supplemental page table*/
 
            /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      if (file_read (file, page->addr, page_read_bytes) != (int) page_read_bytes)
         {
-          palloc_free_page (kpage);
+          palloc_free_page (page->addr);
           return false; 
         }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      memset ((page->addr) + page_read_bytes, 0, page_zero_bytes);
       /* On write to the page - set its dirty bit 
          How to find the page? */
       
       set_page_dirty(page);
       /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
+      if (!install_page (upage, page->addr, writable)) 
         {
-          palloc_free_page (kpage);
+          palloc_free_page (page->addr);
           return false; 
         }
 
@@ -511,21 +520,22 @@ setup_stack (void **esp, const char* file_name, char** save_ptr)
   bool success = false;
 
   //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  kpage = (uint8_t *)get_frame (PAL_USER | PAL_ZERO);
+  kpage = get_frame (PAL_USER | PAL_ZERO);
   if (!kpage)
     {
+      /* Frame eviction will be handled in get_frame, so we shouldn't hit this */
       return success;
     }
 
   /*Update Supplement Page Table */
-  map_frame_to_page(kpage, NEW_PAGE); 
+  struct page *page = map_frame_to_page(kpage, NEW_PAGE); 
   
-  success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+  success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, page->addr, true);
   if (success)
     *esp = PHYS_BASE;
   else
     {
-      palloc_free_page (kpage);
+      palloc_free_page (page->addr);
       return success;
     }
 
