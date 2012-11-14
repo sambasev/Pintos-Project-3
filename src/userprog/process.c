@@ -464,47 +464,45 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
+      struct page *page;
 
-      if(page_read_bytes == PGSIZE) 
+      if (page_read_bytes == PGSIZE) 
         {
-	  /*Demand paging - allocate a page and point read data to it*/
-        }
-      if(page_zero_bytes == PGSIZE)
+	  /* Demand paging - allocate a page (unmapped) and let it page fault*/
+	  /* TODO: How to make all executable pages read-only */
+	  page = create_unmapped_page (upage, 0);
+	  page -> flags = FILE_READ_PAGE;
+	  page -> file_p = file;
+	}
+      if (page_zero_bytes == PGSIZE)
         {
-	  /*Create a new page consisting of all zeroes*/
+	  /* Return a zeroed page */
+	  page = create_unmapped_page (upage, ZERO_PAGE);
+	  page -> file_p = 0;
         }
-      /* Get a page of memory. */
-      //uint8_t *kpage = palloc_get_page (PAL_USER);
+      if ((page_read_bytes != PGSIZE) && (page_zero_bytes != PGSIZE))
+ 	{
+	  page = create_unmapped_page (upage, 0);
+	  void *kaddr = get_frame(PAL_USER);
+          if (!install_page (upage, kaddr, writable)) 
+            {
+	      /* TODO: To find the frame, free mem and update frame pool */
+	      release_frame (kaddr);
+	      palloc_free_page (kaddr);
+              return false; 
+	    }
+          memset ((page->addr) + page_read_bytes, 0, page_zero_bytes);
+	  if (file_read (file, page->addr, page_read_bytes) != (int) page_read_bytes)
+            {
+              palloc_free_page (page->addr);
+              return false; 
+            }
+	}
 	
-      /* Get a page frame. If not successful, swap frames */
-      uint8_t *kpage = get_frame (PAL_USER);
-       if (kpage == NULL)
-        return false;
-
-      /* If successful, update the Supplemental Page Table (critical resource)  
-         TODO: Make macro for page->addr */
-      struct page *page = map_frame_to_page(kpage, NEW_PAGE); 
-      /* If that was successful, map the physical frame to the page
-         added in the supplemental page table*/
-
-           /* Load this page. */
-      if (file_read (file, page->addr, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (page->addr);
-          return false; 
-        }
-      memset ((page->addr) + page_read_bytes, 0, page_zero_bytes);
-      /* On write to the page - set its dirty bit 
-         How to find the page? */
+         /* TODO: Make macro for page->addr */
+         /* TODO: Find out if this qualifies for a write (to set its dirty bit) 
+                  Most probably not */
       
-      set_page_dirty(page);
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, page->addr, writable)) 
-        {
-          palloc_free_page (page->addr);
-          return false; 
-        }
-
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
@@ -521,20 +519,20 @@ setup_stack (void **esp, const char* file_name, char** save_ptr)
   uint8_t *kpage;
   bool success = false;
 
-  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  /*kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   kpage = get_frame (PAL_USER | PAL_ZERO);
   if (!kpage)
     {
-      /* Frame eviction will be handled in get_frame, so we shouldn't hit this */
       return success;
     }
+  */
 
-  /*Update Supplement Page Table */
-  struct page *page = map_frame_to_page(kpage, NEW_PAGE); 
-  
-  success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, page->addr, true);
+  /* Page for the thread stack */
+  struct page *page = create_unmapped_page ((((uint8_t *) PHYS_BASE) - PGSIZE), 0); 
+  kpage = get_frame (PAL_USER | PAL_ZERO);  
+  success = install_page (page->addr, kpage, true);
   if (success)
-    *esp = PHYS_BASE;
+    *esp = page->addr + PGSIZE;
   else
     {
       palloc_free_page (page->addr);

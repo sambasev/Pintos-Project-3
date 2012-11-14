@@ -59,10 +59,9 @@ void *get_frame(int flags)
   //Return page address
 }
 
-/* Not sure if this is necessary. Frames should just be
-   allocated and swapped based on demand, never released
-*/
-void release_frame(void *frame)
+/*  Finds frame corresponding to addr. Frees the corresponding
+    frame, updates the frame bitmap*/
+void release_frame(void *addr)
 {
   
 }

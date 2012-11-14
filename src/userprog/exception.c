@@ -5,6 +5,11 @@
 #include <user/syscall.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "userprog/pagedir.h"
+#include "vm/page.h"
+#include "vm/frame.h"
+#include "threads/palloc.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -152,11 +157,44 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+  /* Write to page from file*/
+  if (user && !write) 
+    {
+     struct thread * t = thread_current();
+     struct page * faulty = page_lookup(fault_addr);
+     void * addr;
+     /* If page exists */
+     if (faulty) 
+       {
+	if (is_kernel_vaddr (faulty->addr))
+	  {
+	    /* TODO: Free thread resources */
+	    kill (f);
+	  }
+	/* TODO: Handle page read-only case */
+	/* Create new physical frame */
+	if (faulty->flags & ZERO_PAGE) 
+	  {
+	    addr = get_frame (PAL_USER | PAL_ZERO);
+	  }
+	else
+	  {
+	    addr = get_frame (PAL_USER);
+	  }
+	 if (faulty->flags & FILE_READ_PAGE)  
+	  {
+	    /* TODO: What if file_read fails? */
+	    file_read (faulty->file_p, addr, PGSIZE);
+	  }
+	/* Map frame to page */
+ 	pagedir_set_page (t->pagedir, fault_addr, addr, READ_WRITE);
+	/* Read whole page from disk to page */
+       }
+     else
+       {
+	 /* Page doesn't exist in the thread's pt */ 
+	 kill (f);
+       }
+    }
 }
 
