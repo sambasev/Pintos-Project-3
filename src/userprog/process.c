@@ -536,17 +536,10 @@ setup_stack (void **esp, const char* file_name, char** save_ptr)
   uint8_t *kpage;
   bool success = false;
 
-  /*kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  kpage = get_frame (PAL_USER | PAL_ZERO);
-  if (!kpage)
-    {
-      return success;
-    }
-  */
-
   /* Page for the thread stack */
   struct page *page = create_page ((((uint8_t *) PHYS_BASE) - PGSIZE), SETUP_STACK); 
   kpage = get_frame (PAL_USER | PAL_ZERO);  
+  /* TODO: Handle this case */
   if (!kpage)
     {
       ASSERT(0);
@@ -554,12 +547,11 @@ setup_stack (void **esp, const char* file_name, char** save_ptr)
     }
   page->kaddr = kpage;
   insert_page(page);
-
-  //success = install_page (page->addr, kpage, true);
-  success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+  success = install_page (page->addr, kpage, true);
+  
   if (success) 
     {
-    *esp = PHYS_BASE; 
+    *esp = (page->addr)+PGSIZE; 
      page->dirty = 1;
     }
   else

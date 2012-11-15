@@ -192,6 +192,8 @@ page_fault (struct intr_frame *f)
 	if (faulty->flags == FILE_READ_PAGE)  
 	  {
 	    /* TODO: What if file_read fails? */
+	    addr = get_frame (PAL_USER);
+ 	    pagedir_set_page (t->pagedir, fault_addr, addr, faulty->writable);
 	    lock_acquire (&filesys_lock);
 	    /* A fault here will trigger kernel page fault */	
 	    if (file_read_at (t->executable, addr, (size_t)PGSIZE, faulty->ofs) != (int)PGSIZE)
