@@ -10,6 +10,10 @@
 #include "vm/page.h"
 #include "vm/frame.h"
 #include "threads/palloc.h"
+#include "filesys/directory.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
+#include "filesys/off_t.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -158,6 +162,9 @@ page_fault (struct intr_frame *f)
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
   /* Write to page from file*/
+
+  uint32_t fault_addr_t = (uint32_t)fault_addr & ~PGMASK;
+  fault_addr = (void *) fault_addr_t; 
   if (user && !write) 
     {
      struct thread * t = thread_current();
@@ -173,28 +180,41 @@ page_fault (struct intr_frame *f)
 	  }
 	/* TODO: Handle page read-only case */
 	/* Create new physical frame */
-	if (faulty->flags & ZERO_PAGE) 
+	if (faulty->flags == ZERO_PAGE) 
 	  {
 	    addr = get_frame (PAL_USER | PAL_ZERO);
+	    /* Map frame to page */
+ 	    pagedir_set_page (t->pagedir, fault_addr, addr, READ_WRITE);
 	  }
 	else
 	  {
 	    addr = get_frame (PAL_USER);
+	    /* Map frame to page */
+ 	    pagedir_set_page (t->pagedir, fault_addr, addr, READ_WRITE);
 	  }
-	 if (faulty->flags & FILE_READ_PAGE)  
+	if (faulty->flags == FILE_READ_PAGE)  
 	  {
 	    /* TODO: What if file_read fails? */
-	    file_read (faulty->file_p, addr, PGSIZE);
+	    file_seek (t->executable, faulty->ofs);
+	    if (file_read (t->executable, addr, (size_t)PGSIZE) != (int)PGSIZE)
+	      {
+		pagedir_clear_page(t->pagedir, fault_addr);
+		ASSERT(0);
+	      }
 	  }
-	/* Map frame to page */
- 	pagedir_set_page (t->pagedir, fault_addr, addr, READ_WRITE);
 	/* Read whole page from disk to page */
        }
      else
        {
 	 /* Page doesn't exist in the thread's pt */ 
+	ASSERT(0);
 	 kill (f);
        }
+    }
+   else
+    {
+        ASSERT(0);
+        kill(f);
     }
 }
 

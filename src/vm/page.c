@@ -3,7 +3,7 @@
 #include "threads/thread.h"
 #include "threads/malloc.h"
 #include "userprog/pagedir.h"
-
+#include "threads/vaddr.h"
 #include <stdbool.h>
 
 /* Implements supplemental page table 
@@ -13,32 +13,48 @@
 
 /* Takes a frame and maps it to a page. 
    Returns the newly created page */
-struct page * create_page(void *vaddr)
+struct page * create_page(void *addr, int flags)
+{
+  struct page * upage = malloc (sizeof(struct page));
+  upage -> addr = (void *)(((uint32_t)addr) & (~PGMASK));
+  upage -> dirty = 0;
+  upage -> accessed = 0;
+  upage -> flags = flags;
+//  hash_insert (&t->page_table, &kpage->hash_elem);
+  return upage;
+}
+
+void insert_page (struct page * upage)
 {
   struct thread *t = thread_current();
-  struct page * kpage = malloc (sizeof(struct page));
-  kpage -> addr = vaddr;
-  kpage -> dirty = 0;
-  kpage -> accessed = 0;
-  hash_insert (&t->page_table, &kpage->hash_elem);
-  return kpage;
+  hash_insert (&t->page_table, &upage->hash_elem);
 }
 
 void map_frame_to_page(void *addr, void *frame)
 {
-  struct page * upage = page_lookup (addr);
+  struct page * upage = page_lookup ((void *)((uint32_t)addr & (~PGMASK)));
   upage -> addr = frame;
 }
 
+/* Used only when file read bytes == PGSIZE */
+struct page * create_unmapped_page(void *addr, uint8_t flags)
+{
+   struct thread *t = thread_current();
+   struct page * upage = malloc(sizeof(struct page));
+   upage -> addr = (void *)((uint32_t)addr & (~PGMASK)); 
+   upage -> flags = flags; 
+   hash_insert (&t->page_table, &upage->hash_elem);
+   return upage;
+}
 
-struct page * map_page_to_frame (void *page, int flags)
+struct page * map_page_to_frame (void *addr, int flags)
 {
   struct thread *t = thread_current();
   /*Create a new page*/
   if (flags == NEW_PAGE)
     {
       struct page * upage = malloc (sizeof(struct page));
-      upage -> addr = page;
+      upage -> addr = (void *)((uint32_t)addr & (~PGMASK));
       upage -> dirty = 0;
       upage -> accessed = 0;
       upage -> flags = NEW_PAGE;
@@ -60,17 +76,6 @@ struct page * map_page_to_frame (void *page, int flags)
     {
       return 0;
     }  
-}
-
-/* Used only when file read bytes == PGSIZE */
-struct page * create_unmapped_page(void *addr, uint8_t flags)
-{
-   struct thread *t = thread_current();
-   struct page * upage = malloc(sizeof(struct page));
-   upage -> addr = addr; 
-   upage -> flags = flags; 
-   hash_insert (&t->page_table, &upage->hash_elem);
-   return upage;
 }
 
 void set_page_accessed(struct page *page)
@@ -98,12 +103,12 @@ bool page_less (const struct hash_elem *a_, const struct hash_elem *b_,
   return a->addr < b->addr;
 }
 
-struct page * page_lookup (const void *address)
+struct page * page_lookup (void *address)
 {
   struct thread *t = thread_current();
   struct page p;
   struct hash_elem *e;
-  p.addr = address;
+  p.addr = (void *)((uint32_t)address & (~PGMASK));
   e = hash_find (&t->page_table, &p.hash_elem);
   return e != NULL ? hash_entry (e, struct page, hash_elem) : NULL;
 }

@@ -2,7 +2,9 @@
 #define PAGE_H
 
 #include <hash.h>
-
+#include "filesys/file.h"
+#include "filesys/filesys.h"
+#include "filesys/off_t.h"
 #define NEW_PAGE 1 
 #define UNMAPPED_PAGE 2
 #define ZERO_PAGE 4
@@ -34,19 +36,22 @@ struct page
    /* Set when page has been read/written after creation */
    uint8_t accessed; 
    uint8_t flags;
+   /* Thread owner */
+   struct thread * owner;
    /* pointer to a file (if any) the page will access*/
-   void *file_p;
+   off_t ofs;
 };
 
- struct page * create_page(void *vaddr);
+ struct page * create_page(void *addr, int flags);
  struct page * create_unmapped_page (void *addr, uint8_t flags);
+ void insert_page (struct page * upage);
  void map_frame_to_page (void *addr, void *frame);
- struct page * map_page_to_frame (void *page, int flags);
+ struct page * map_page_to_frame (void *addr, int flags);
  void set_page_accessed (struct page * page);
  void set_page_dirty (struct page * page);
 
  unsigned page_hash (const struct hash_elem *p_, void *aux);
  bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux);
- struct page * page_lookup (const void *address);
+ struct page * page_lookup (void *address);
 
 #endif

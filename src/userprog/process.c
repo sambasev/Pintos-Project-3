@@ -470,15 +470,26 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         {
 	  /* Demand paging - allocate a page (unmapped) and let it page fault*/
 	  /* TODO: How to make all executable pages read-only */
-	  page = create_unmapped_page (upage, 0);
-	  page -> flags = FILE_READ_PAGE;
-	  page -> file_p = file;
+	  page = create_page (upage, FILE_READ_PAGE);
+	  page -> ofs = ofs;
+	  insert_page (page);
+	//TEST TEST TEST
+          struct page *page_test = page_lookup(page->addr);
+	  if (page != page_test)
+	    {
+		ASSERT(0);	
+	    }
 	}
       if (page_zero_bytes == PGSIZE)
         {
 	  /* Return a zeroed page */
-	  page = create_unmapped_page (upage, ZERO_PAGE);
-	  page -> file_p = 0;
+	  page = create_page (upage, ZERO_PAGE);
+	  insert_page (page);
+	  struct page *page_test = page_lookup(page->addr);
+	  if (page != page_test)
+	    {
+		ASSERT(0);	
+	    }
         }
       if ((page_read_bytes != PGSIZE) && (page_zero_bytes != PGSIZE))
  	{
@@ -491,12 +502,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	      palloc_free_page (kaddr);
               return false; 
 	    }
-          memset ((page->addr) + page_read_bytes, 0, page_zero_bytes);
-	  if (file_read (file, page->addr, page_read_bytes) != (int) page_read_bytes)
+	  if (file_read (file, kaddr, page_read_bytes) != (int) page_read_bytes)
             {
-              palloc_free_page (page->addr);
+              palloc_free_page (kaddr);
               return false; 
             }
+          memset ((kaddr) + page_read_bytes, 0, page_zero_bytes);
 	}
 	
          /* TODO: Make macro for page->addr */
