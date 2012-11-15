@@ -14,6 +14,8 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "filesys/off_t.h"
+#include "threads/synch.h"
+#include "userprog/syscall.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -173,6 +175,7 @@ page_fault (struct intr_frame *f)
      /* If page exists */
      if (faulty) 
        {
+        faulty -> accessed = 1;
 	if (is_kernel_vaddr (faulty->addr))
 	  {
 	    /* TODO: Free thread resources */
@@ -184,37 +187,62 @@ page_fault (struct intr_frame *f)
 	  {
 	    addr = get_frame (PAL_USER | PAL_ZERO);
 	    /* Map frame to page */
- 	    pagedir_set_page (t->pagedir, fault_addr, addr, READ_WRITE);
-	  }
-	else
-	  {
-	    addr = get_frame (PAL_USER);
-	    /* Map frame to page */
- 	    pagedir_set_page (t->pagedir, fault_addr, addr, READ_WRITE);
+ 	    pagedir_set_page (t->pagedir, fault_addr, addr, faulty->writable);
 	  }
 	if (faulty->flags == FILE_READ_PAGE)  
 	  {
 	    /* TODO: What if file_read fails? */
-	    file_seek (t->executable, faulty->ofs);
-	    if (file_read (t->executable, addr, (size_t)PGSIZE) != (int)PGSIZE)
+	    lock_acquire (&filesys_lock);
+	    /* A fault here will trigger kernel page fault */	
+	    if (file_read_at (t->executable, addr, (size_t)PGSIZE, faulty->ofs) != (int)PGSIZE)
 	      {
 		pagedir_clear_page(t->pagedir, fault_addr);
 		ASSERT(0);
 	      }
+	    lock_release (&filesys_lock);
 	  }
 	/* Read whole page from disk to page */
        }
      else
        {
 	 /* Page doesn't exist in the thread's pt */ 
-	ASSERT(0);
+	 ASSERT(0);
 	 kill (f);
        }
     }
-   else
-    {
-        ASSERT(0);
-        kill(f);
+   if (user && write)
+     {
+	if (is_kernel_vaddr (fault_addr))
+	  {
+	    /* TODO: Free thread resources */
+	    kill (f);
+	  }
+	struct thread * t = thread_current();
+        struct page * faulty = page_lookup(fault_addr);
+        void * addr;
+        /* If page exists */
+        if (faulty) 
+	  {
+    	    /* Create a new frame, map it to the fault address */
+            if (pagedir_get_page (t->pagedir, faulty->addr) == NULL)	    
+	     {
+	       ASSERT(0);
+	     }
+ 	    if(faulty->flags == SETUP_STACK)
+	     {
+		ASSERT(0);
+	     }
+	    ASSERT(0);	
+	  }
+   	if (!user) 
+	  {
+	    ASSERT(0);
+	  }
     }
+    if (!user)
+      {
+	/* Kernel mode page fault */
+	 ASSERT(0);
+      }
 }
 

@@ -472,6 +472,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	  /* TODO: How to make all executable pages read-only */
 	  page = create_page (upage, FILE_READ_PAGE);
 	  page -> ofs = ofs;
+          page -> writable = writable;
 	  insert_page (page);
 	//TEST TEST TEST
           struct page *page_test = page_lookup(page->addr);
@@ -484,6 +485,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         {
 	  /* Return a zeroed page */
 	  page = create_page (upage, ZERO_PAGE);
+          page -> writable = writable;
 	  insert_page (page);
 	  struct page *page_test = page_lookup(page->addr);
 	  if (page != page_test)
@@ -493,21 +495,25 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         }
       if ((page_read_bytes != PGSIZE) && (page_zero_bytes != PGSIZE))
  	{
-	  page = create_unmapped_page (upage, 0);
-	  void *kaddr = get_frame(PAL_USER);
+	  page = create_page (upage, FILE_READ_PARTIAL);
+ 	  page->accessed = 1;
+	  insert_page(page);
+	  void *kaddr = get_frame(PAL_USER | PAL_ZERO);
           if (!install_page (upage, kaddr, writable)) 
             {
 	      /* TODO: To find the frame, free mem and update frame pool */
 	      release_frame (kaddr);
-	      palloc_free_page (kaddr);
+	      ASSERT(0);
+	      //palloc_free_page (kaddr);
               return false; 
 	    }
 	  if (file_read (file, kaddr, page_read_bytes) != (int) page_read_bytes)
             {
-              palloc_free_page (kaddr);
+              //palloc_free_page (kaddr);
+	      ASSERT(0);
               return false; 
             }
-          memset ((kaddr) + page_read_bytes, 0, page_zero_bytes);
+          //memset ((kaddr) + page_read_bytes, 0, page_zero_bytes);
 	}
 	
          /* TODO: Make macro for page->addr */
@@ -539,14 +545,27 @@ setup_stack (void **esp, const char* file_name, char** save_ptr)
   */
 
   /* Page for the thread stack */
-  struct page *page = create_unmapped_page ((((uint8_t *) PHYS_BASE) - PGSIZE), 0); 
+  struct page *page = create_page ((((uint8_t *) PHYS_BASE) - PGSIZE), SETUP_STACK); 
   kpage = get_frame (PAL_USER | PAL_ZERO);  
-  success = install_page (page->addr, kpage, true);
-  if (success)
-    *esp = page->addr + PGSIZE;
+  if (!kpage)
+    {
+      ASSERT(0);
+      return success;
+    }
+  page->kaddr = kpage;
+  insert_page(page);
+
+  //success = install_page (page->addr, kpage, true);
+  success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+  if (success) 
+    {
+    *esp = PHYS_BASE; 
+     page->dirty = 1;
+    }
   else
     {
-      palloc_free_page (page->addr);
+      /* TODO: Handle this case */
+      //palloc_free_page (kpage);
       return success;
     }
 
@@ -603,7 +622,6 @@ setup_stack (void **esp, const char* file_name, char** save_ptr)
   memcpy(*esp, &argv[argc], sizeof(void *));
   // Free argv
   free(argv);
-
   return success;
 }
 

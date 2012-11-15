@@ -9,6 +9,8 @@
 #define UNMAPPED_PAGE 2
 #define ZERO_PAGE 4
 #define FILE_READ_PAGE 8
+#define FILE_READ_PARTIAL 16
+#define SETUP_STACK 32
 /* Very similar to the frame table entries
    Each thread has its own supplemental page table (spt)
    spt keeps track of all pages accessed/modified by thread
@@ -40,6 +42,7 @@ struct page
    struct thread * owner;
    /* pointer to a file (if any) the page will access*/
    off_t ofs;
+   bool writable;
 };
 
  struct page * create_page(void *addr, int flags);
