@@ -470,7 +470,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         {
 	  /* Demand paging - allocate a page (unmapped) and let it page fault*/
 	  /* TODO: How to make all executable pages read-only */
-	  printf("<2>page_read_bytes == PGSIZE\n");
+	  printf("<2> upage %x\n", (uint32_t)upage);
 	  page = create_page (upage, FILE_READ_PAGE);
 	  page -> ofs = ofs;
           page -> writable = writable;
@@ -486,7 +486,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       if (page_zero_bytes == PGSIZE)
         {
 	  /* Return a zeroed page */
-	  printf("<3>page_zero_bytes == PGSIZE\n");
+	  printf("<3>upage %x\n", (uint32_t)upage);
 	  page = create_page (upage, ZERO_PAGE);
           page -> writable = writable;
 	  insert_page (page);
@@ -499,7 +499,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         }
       if ((page_read_bytes != PGSIZE) && (page_zero_bytes != PGSIZE))
  	{
-	  printf("<4>page_read_bytes & page_zero_bytes !=PGSIZE\n");
+	  printf("<4>upage %x\n", (uint32_t)upage);
 	  page = create_page (upage, FILE_READ_PARTIAL);
  	  page->accessed = 1;
 	  insert_page(page);
@@ -518,7 +518,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	      ASSERT(0);
               return false; 
             }
-	  printf("File read:%s\n", (char *)kaddr);
+	  printf("*kaddr %x write %d:\n%s\n", (uint32_t)kaddr, writable, (char *)kaddr);
           //memset ((kaddr) + page_read_bytes, 0, page_zero_bytes);
 	}
 	

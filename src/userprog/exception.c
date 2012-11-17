@@ -164,10 +164,10 @@ page_fault (struct intr_frame *f)
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
   /* Write to page from file*/
-  printf("PF Exception called with Faulty address %x\n", (uint32_t)fault_addr);
+  printf("<PF> Exception called with Faulty address %x\n", (uint32_t)fault_addr);
   uint32_t fault_addr_t = (uint32_t)fault_addr & ~PGMASK;
   fault_addr = (void *) fault_addr_t; 
-  if (user && !write) 
+  if (user) 
     {
      struct thread * t = thread_current();
      struct page * faulty = page_lookup(fault_addr);
@@ -213,39 +213,6 @@ page_fault (struct intr_frame *f)
 	 kill (f);
        }
     }
-   if (user && write)
-     {
-	if (is_kernel_vaddr (fault_addr))
-	  {
-	    /* TODO: Free thread resources */
-	    kill (f);
-	  }
-	struct thread * t = thread_current();
-        struct page * faulty = page_lookup(fault_addr);
-        void * addr;
-        /* If page exists */
-        if (faulty) 
-	  {
-    	    /* Create a new frame, map it to the fault address */
-            if (pagedir_get_page (t->pagedir, faulty->addr) == NULL)	    
-	     {
-	       ASSERT(0);
-	     }
- 	    if(faulty->flags == SETUP_STACK)
-	     {
-		ASSERT(0);
-	     }
-	    ASSERT(0);	
-	  }
-   	if (!user) 
-	  {
-	    ASSERT(0);
-	  }
-    }
-    if (!user)
-      {
-	/* Kernel mode page fault */
-	 ASSERT(0);
-      }
+  
 }
 
