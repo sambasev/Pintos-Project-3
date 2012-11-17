@@ -465,41 +465,28 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
       struct page *page;
-      printf("<1> Page_read_bytes = %d page_zero_bytes %d\n", (int)page_read_bytes, (int)page_zero_bytes);
       if (page_read_bytes == PGSIZE) 
         {
 	  /* Demand paging - allocate a page (unmapped) and let it page fault*/
 	  /* TODO: How to make all executable pages read-only */
-	  printf("<2> upage %x\n", (uint32_t)upage);
+	  //printf("<2> upage %x\n", (uint32_t)upage);
 	  page = create_page (upage, FILE_READ_PAGE);
 	  page -> ofs = ofs;
           page -> writable = writable;
 	  insert_page (page);
-	//TEST TEST TEST
-          struct page *page_test = page_lookup(page->addr);
-	  if (page != page_test)
-	    {
-		ASSERT(0);	
-	    }
 	  ofs+=page_read_bytes;
 	}
       if (page_zero_bytes == PGSIZE)
         {
-	  /* Return a zeroed page */
-	  printf("<3>upage %x\n", (uint32_t)upage);
+	  //printf("<3>upage %x\n", (uint32_t)upage);
 	  page = create_page (upage, ZERO_PAGE);
           page -> writable = writable;
 	  insert_page (page);
-	  struct page *page_test = page_lookup(page->addr);
-	  if (page != page_test)
-	    {
-		ASSERT(0);	
-	    }
-	   ofs+=page_zero_bytes;
+	  ofs+=page_zero_bytes;
         }
       if ((page_read_bytes != PGSIZE) && (page_zero_bytes != PGSIZE))
  	{
-	  printf("<4>upage %x\n", (uint32_t)upage);
+	  //printf("<4>upage %x\n", (uint32_t)upage);
 	  page = create_page (upage, FILE_READ_PARTIAL);
  	  page->accessed = 1;
 	  insert_page(page);
@@ -509,16 +496,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	      /* TODO: To find the frame, free mem and update frame pool */
 	      release_frame (kaddr);
 	      ASSERT(0);
-	      //palloc_free_page (kaddr);
               return false; 
 	    }
-	  if (file_read (file, kaddr, page_read_bytes) != (int) page_read_bytes)
+	  if (file_read_at (file, kaddr, page_read_bytes, ofs) != (int) page_read_bytes)
             {
-              //palloc_free_page (kaddr);
 	      ASSERT(0);
               return false; 
             }
-	  printf("*kaddr %x write %d:\n%s\n", (uint32_t)kaddr, writable, (char *)kaddr);
+	  //printf("*kaddr %x write %d:\n%s\n", (uint32_t)kaddr, writable, (char *)kaddr);
           //memset ((kaddr) + page_read_bytes, 0, page_zero_bytes);
 	}
 	

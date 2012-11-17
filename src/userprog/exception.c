@@ -164,7 +164,7 @@ page_fault (struct intr_frame *f)
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
   /* Write to page from file*/
-  printf("<PF> Exception called with Faulty address %x\n", (uint32_t)fault_addr);
+//  printf("<PF> Exception called with Faulty address %x\n", (uint32_t)fault_addr);
   uint32_t fault_addr_t = (uint32_t)fault_addr & ~PGMASK;
   fault_addr = (void *) fault_addr_t; 
   if (user) 
@@ -201,7 +201,7 @@ page_fault (struct intr_frame *f)
 		pagedir_clear_page(t->pagedir, fault_addr);
 		ASSERT(0);
 	      }
-	    printf("FILE PF: %s\n", (char *)fault_addr);
+	//    printf("FILE PF: %s\n", (char *)fault_addr);
 	    lock_release (&filesys_lock);
 	  }
 	/* Read whole page from disk to page */
