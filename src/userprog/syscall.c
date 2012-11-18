@@ -35,7 +35,8 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   int arg[MAX_ARGS];
-  int esp = user_to_kernel_ptr((const void*) f->esp);
+  int esp = (int)f->esp;
+  //printf("f->esp is 0x%x esp is %x\n", (uint32_t)f->esp, (uint32_t)esp);
   switch (* (int *) esp)
     {
     case SYS_HALT:
@@ -53,7 +54,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
 	get_arg(f, &arg[0], 1);
 	check_valid_string((const void *) arg[0]);
-	arg[0] = user_to_kernel_ptr((const void *) arg[0]);
+	//arg[0] = user_to_kernel_ptr((const void *) arg[0]);
 	f->eax = exec((const char *) arg[0]); 
 	break;
       }
@@ -67,7 +68,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
 	get_arg(f, &arg[0], 2);
 	check_valid_string((const void *) arg[0]);
-	arg[0] = user_to_kernel_ptr((const void *) arg[0]);
+	//arg[0] = user_to_kernel_ptr((const void *) arg[0]);
 	f->eax = create((const char *)arg[0], (unsigned) arg[1]);
 	break;
       }
@@ -75,7 +76,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
 	get_arg(f, &arg[0], 1);
 	check_valid_string((const void *) arg[0]);
-	arg[0] = user_to_kernel_ptr((const void *) arg[0]);
+	//arg[0] = user_to_kernel_ptr((const void *) arg[0]);
 	f->eax = remove((const char *) arg[0]);
 	break;
       }
@@ -83,7 +84,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
 	get_arg(f, &arg[0], 1);
 	check_valid_string((const void *) arg[0]);
-	arg[0] = user_to_kernel_ptr((const void *) arg[0]);
+	//arg[0] = user_to_kernel_ptr((const void *) arg[0]);
 	f->eax = open((const char *) arg[0]);
 	break; 		
       }
@@ -97,15 +98,16 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
 	get_arg(f, &arg[0], 3);
 	check_valid_buffer((void *) arg[1], (unsigned) arg[2]);
-	arg[1] = user_to_kernel_ptr((const void *) arg[1]);
+	//arg[1] = user_to_kernel_ptr((const void *) arg[1]);
 	f->eax = read(arg[0], (void *) arg[1], (unsigned) arg[2]);
 	break;
       }
     case SYS_WRITE:
       { 
 	get_arg(f, &arg[0], 3);
+	//printf("arg[1] : %x arg[2] : %x\n", (uint32_t) arg[1], (uint32_t) arg[2]);
 	check_valid_buffer((void *) arg[1], (unsigned) arg[2]);
-	arg[1] = user_to_kernel_ptr((const void *) arg[1]);
+	//arg[1] = user_to_kernel_ptr((const void *) arg[1]);
 	f->eax = write(arg[0], (const void *) arg[1],
 		       (unsigned) arg[2]);
 	break;
@@ -244,6 +246,7 @@ int write (int fd, const void *buffer, unsigned size)
 {
   if (fd == STDOUT_FILENO)
     {
+      //printf("write to buffer %x is:%s\n", (uint32_t)buffer, (char *)buffer);
       putbuf(buffer, size);
       return size;
     }
@@ -394,7 +397,7 @@ void check_valid_buffer (void* buffer, unsigned size)
 
 void check_valid_string (const void* str)
 {
-  while (* (char *) user_to_kernel_ptr(str) != 0)
+  while (* (char *) str != 0)
     {
       str = (char *) str + 1;
     }

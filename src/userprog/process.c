@@ -35,7 +35,6 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   //Get a kernel page
@@ -81,9 +80,9 @@ start_process (void *file_name_)
   else
     {
       thread_current()->cp->load = LOAD_FAIL;
+      ASSERT(0);
     }
   sema_up(&thread_current()->cp->load_sema);
-
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -292,7 +291,8 @@ load (const char *file_name, void (**eip) (void), void **esp,
   file = filesys_open (file_name);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", (char *)file_name);
+      ASSERT(0);
       goto done; 
     }
   file_deny_write(file);
@@ -528,7 +528,7 @@ setup_stack (void **esp, const char* file_name, char** save_ptr)
   bool success = false;
 
   /* Page for the thread stack */
-  struct page *page = create_page ((((uint8_t *) PHYS_BASE) - PGSIZE), SETUP_STACK); 
+  struct page *page = create_page ((((uint8_t *) PHYS_BASE) - PGSIZE), STACK_PAGE); 
   kpage = get_frame (PAL_USER | PAL_ZERO);  
   /* TODO: Handle this case */
   if (!kpage)

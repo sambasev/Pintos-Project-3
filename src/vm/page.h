@@ -10,7 +10,12 @@
 #define ZERO_PAGE 4
 #define FILE_READ_PAGE 8
 #define FILE_READ_PARTIAL 16
-#define SETUP_STACK 32
+#define STACK_PAGE 32
+
+#define STACK_START ((void *) LOADER_PHYS_BASE)
+#define STACK_LIMIT ((uint8_t *) STACK_END)
+#define STACK_END 0xbf800000
+
 /* Very similar to the frame table entries
    Each thread has its own supplemental page table (spt)
    spt keeps track of all pages accessed/modified by thread

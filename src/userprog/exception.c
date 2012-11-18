@@ -120,6 +120,13 @@ kill (struct intr_frame *f)
     }
 }
 
+static void 
+kill_process (struct intr_frame *f)
+{
+   /* Frees all thread resources and kills it */
+   kill(f);
+}
+
 /* Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to project 2 may
    also require modifying this code.
@@ -166,53 +173,67 @@ page_fault (struct intr_frame *f)
   /* Write to page from file*/
 //  printf("<PF> Exception called with Faulty address %x\n", (uint32_t)fault_addr);
   uint32_t fault_addr_t = (uint32_t)fault_addr & ~PGMASK;
-  fault_addr = (void *) fault_addr_t; 
+  void * fault_page = (void *) fault_addr_t; 
   if (user) 
     {
      struct thread * t = thread_current();
-     struct page * faulty = page_lookup(fault_addr);
-     void * addr;
+     struct page * faulty = page_lookup(fault_page);
+     void * kaddr;
+     /* Invalid Stack Pointer */
+     if( (uint32_t)f->esp < (uint32_t)STACK_LIMIT || 
+         (uint32_t)f->esp > (uint32_t)STACK_START )
+     {
+        kill_process(f);
+     }	
      /* If page exists */
      if (faulty) 
        {
-        faulty -> accessed = 1;
 	if (is_kernel_vaddr (faulty->addr))
 	  {
 	    /* TODO: Free thread resources */
 	    kill (f);
 	  }
-	/* TODO: Handle page read-only case */
-	/* Create new physical frame */
 	if (faulty->flags == ZERO_PAGE) 
 	  {
-	    addr = get_frame (PAL_USER | PAL_ZERO);
-	    /* Map frame to page */
- 	    pagedir_set_page (t->pagedir, fault_addr, addr, faulty->writable);
+	    kaddr = get_frame (PAL_USER | PAL_ZERO);
+ 	    pagedir_set_page (t->pagedir, fault_page, kaddr, faulty->writable);
 	  }
 	if (faulty->flags == FILE_READ_PAGE)  
 	  {
-	    /* TODO: What if file_read fails? */
-	    addr = get_frame (PAL_USER);
- 	    pagedir_set_page (t->pagedir, fault_addr, addr, faulty->writable);
+	    kaddr = get_frame (PAL_USER);
+ 	    pagedir_set_page (t->pagedir, fault_page, kaddr, faulty->writable);
 	    lock_acquire (&filesys_lock);
-	    /* A fault here will trigger kernel page fault */	
-	    if (file_read_at (t->executable, addr, (size_t)PGSIZE, faulty->ofs) != (int)PGSIZE)
+	    if (file_read_at (t->executable, kaddr, (size_t)PGSIZE, faulty->ofs) != (int)PGSIZE)
 	      {
-		pagedir_clear_page(t->pagedir, fault_addr);
+		pagedir_clear_page(t->pagedir, fault_page);
 		ASSERT(0);
 	      }
 	//    printf("FILE PF: %s\n", (char *)fault_addr);
 	    lock_release (&filesys_lock);
 	  }
-	/* Read whole page from disk to page */
        }
      else
        {
-	 /* Page doesn't exist in the thread's pt */ 
-	 ASSERT(0);
-	 kill (f);
+	 /* Page doesn't exist in the thread's pt */
+	 /* Stack growth */ 
+	 if (((uint32_t)fault_addr >= (uint32_t)STACK_LIMIT) && 
+	     ((uint32_t)fault_addr < (uint32_t)STACK_START)) 
+	   {
+	    // printf("Stack pointer %x fault_addr %x\n", (uint32_t)f->esp, (uint32_t)fault_addr);
+	     void * kaddr = get_frame(PAL_USER | PAL_ZERO);
+	     pagedir_set_page (t->pagedir, fault_page, kaddr, true);
+	     struct page * stack_page = create_page (kaddr, STACK_PAGE);
+	     insert_page (stack_page);
+	     ASSERT(fault_addr!=f->esp); 
+	   }
+	 else
+	   {
+	     ASSERT(0);
+	     kill (f);
+	   }
        }
     }
   
 }
+
 
