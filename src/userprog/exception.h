@@ -8,6 +8,8 @@
 
 #define READ_ONLY 0
 #define READ_WRITE 1
+//ABS definition taken from C Standard Macros
+#define ABS(a) (((a) < 0) ? -(a) : (a))
 void exception_init (void);
 void exception_print_stats (void);
 

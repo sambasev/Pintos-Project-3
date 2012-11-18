@@ -183,6 +183,7 @@ page_fault (struct intr_frame *f)
      if( (uint32_t)f->esp < (uint32_t)STACK_LIMIT || 
          (uint32_t)f->esp > (uint32_t)STACK_START )
      {
+	ASSERT(0);
         kill_process(f);
      }	
      /* If page exists */
@@ -190,8 +191,7 @@ page_fault (struct intr_frame *f)
        {
 	if (is_kernel_vaddr (faulty->addr))
 	  {
-	    /* TODO: Free thread resources */
-	    kill (f);
+	    kill_process (f);
 	  }
 	if (faulty->flags == ZERO_PAGE) 
 	  {
@@ -208,7 +208,6 @@ page_fault (struct intr_frame *f)
 		pagedir_clear_page(t->pagedir, fault_page);
 		ASSERT(0);
 	      }
-	//    printf("FILE PF: %s\n", (char *)fault_addr);
 	    lock_release (&filesys_lock);
 	  }
        }
@@ -216,10 +215,15 @@ page_fault (struct intr_frame *f)
        {
 	 /* Page doesn't exist in the thread's pt */
 	 /* Stack growth */ 
-	 if (((uint32_t)fault_addr >= (uint32_t)STACK_LIMIT) && 
-	     ((uint32_t)fault_addr < (uint32_t)STACK_START)) 
+	 if ( ((uint32_t)fault_addr >= (uint32_t)STACK_LIMIT) && 
+	      ((uint32_t)fault_addr < (uint32_t)STACK_START) ) 
 	   {
-	    // printf("Stack pointer %x fault_addr %x\n", (uint32_t)f->esp, (uint32_t)fault_addr);
+	     /* Illegal Stack Access */
+	     if( ABS((int)((uint32_t)fault_addr  - (uint32_t)f->esp)) > 32 )
+	        {
+		  kill_process(f);		
+		}
+	     printf("Stack pointer %x fault_addr %x\n", (uint32_t)f->esp, (uint32_t)fault_addr);
 	     void * kaddr = get_frame(PAL_USER | PAL_ZERO);
 	     pagedir_set_page (t->pagedir, fault_page, kaddr, true);
 	     struct page * stack_page = create_page (kaddr, STACK_PAGE);
@@ -229,7 +233,7 @@ page_fault (struct intr_frame *f)
 	 else
 	   {
 	     ASSERT(0);
-	     kill (f);
+	     kill_process (f);
 	   }
        }
     }
