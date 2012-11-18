@@ -503,8 +503,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	      ASSERT(0);
               return false; 
             }
-	  //printf("*kaddr %x write %d:\n%s\n", (uint32_t)kaddr, writable, (char *)kaddr);
-          //memset ((kaddr) + page_read_bytes, 0, page_zero_bytes);
 	}
 	
          /* TODO: Make macro for page->addr */

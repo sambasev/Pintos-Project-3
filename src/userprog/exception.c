@@ -193,6 +193,11 @@ page_fault (struct intr_frame *f)
 	  {
 	    kill_process (f);
 	  }
+	/* Attempt to write read-only page */
+	if ( write && !(faulty->writable))
+	  {
+	    kill_process (f);
+	  }
 	if (faulty->flags == ZERO_PAGE) 
 	  {
 	    kaddr = get_frame (PAL_USER | PAL_ZERO);
@@ -232,8 +237,8 @@ page_fault (struct intr_frame *f)
 	   }
 	 else
 	   {
-	     ASSERT(0);
 	     kill_process (f);
+	     ASSERT(0);
 	   }
        }
     }
