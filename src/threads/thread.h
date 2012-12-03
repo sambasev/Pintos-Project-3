@@ -18,6 +18,7 @@ enum thread_status
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
+/* Memory map identifier type. */
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
 
 /* Thread priorities. */
@@ -93,7 +94,8 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    //struct sup_page_table * page_table;
+    
+    // Supplemental page table
     struct hash page_table;
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -118,6 +120,9 @@ struct thread
 
     // Needed for denying writes to executables
     struct file* executable;
+    
+    // Needed for memory mapped files
+    int mapid;
   };
 
 /* If false (default), use round-robin scheduler.

@@ -171,44 +171,66 @@ page_fault (struct intr_frame *f)
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
   /* Write to page from file*/
-//  printf("<PF> Exception called with Faulty address %x\n", (uint32_t)fault_addr);
+//  printf("<PF> Exception called with Faulty address %x user %d write %d\n", 
+//	 (uint32_t)fault_addr, user, write);
   uint32_t fault_addr_t = (uint32_t)fault_addr & ~PGMASK;
   void * fault_page = (void *) fault_addr_t; 
-  if (user) 
+  struct thread * t = thread_current();
+//if (user)
+  if (1) 
     {
-     struct thread * t = thread_current();
-     struct page * faulty = page_lookup(fault_page);
      void * kaddr;
      /* Invalid Stack Pointer */
      if( (uint32_t)f->esp < (uint32_t)STACK_LIMIT || 
          (uint32_t)f->esp > (uint32_t)STACK_START )
      {
-	ASSERT(0);
-        kill_process(f);
+	//ASSERT(0);
+        //kill_process(f);
      }	
+     struct page * fpage = page_lookup(fault_page);
      /* If page exists */
-     if (faulty) 
+     if (fpage) 
        {
-	if (is_kernel_vaddr (faulty->addr))
+	//printf("Entered fpage %x flags %d\n", (uint32_t)fpage, fpage->flags);
+	if (is_kernel_vaddr (fpage->addr))
 	  {
 	    kill_process (f);
 	  }
 	/* Attempt to write read-only page */
-	if ( write && !(faulty->writable))
+	if (write && !(fpage->writable))
 	  {
 	    kill_process (f);
 	  }
-	if (faulty->flags == ZERO_PAGE) 
+	if (fpage->flags == ZERO_PAGE) 
 	  {
 	    kaddr = get_frame (PAL_USER | PAL_ZERO);
- 	    pagedir_set_page (t->pagedir, fault_page, kaddr, faulty->writable);
+ 	    pagedir_set_page (t->pagedir, fault_page, kaddr, fpage->writable);
 	  }
-	if (faulty->flags == FILE_READ_PAGE)  
+	if (fpage->flags == FILE_READ_PAGE)  
 	  {
 	    kaddr = get_frame (PAL_USER);
- 	    pagedir_set_page (t->pagedir, fault_page, kaddr, faulty->writable);
+ 	    pagedir_set_page (t->pagedir, fault_page, kaddr, fpage->writable);
 	    lock_acquire (&filesys_lock);
-	    if (file_read_at (t->executable, kaddr, (size_t)PGSIZE, faulty->ofs) != (int)PGSIZE)
+	    if (file_read_at (t->executable, kaddr, (size_t)PGSIZE, fpage->ofs) != (int)PGSIZE)
+	      {
+		pagedir_clear_page(t->pagedir, fault_page);
+		ASSERT(0);
+	      }
+	    lock_release (&filesys_lock);
+	  }
+	if (fpage->flags == MMAP_PAGE)
+ 	  {
+	    if (fpage->read_bytes == PGSIZE) 
+	      {
+	        kaddr = get_frame (PAL_USER);
+	      }
+	    else
+	      {
+		kaddr = get_frame (PAL_USER | PAL_ZERO);
+	      }
+ 	    pagedir_set_page (t->pagedir, fault_page, kaddr, fpage->writable);
+	    lock_acquire (&filesys_lock);
+	    if (file_read_at (fpage->mmap_file, kaddr, fpage->read_bytes, fpage->ofs) != (int)fpage->read_bytes)
 	      {
 		pagedir_clear_page(t->pagedir, fault_page);
 		ASSERT(0);
@@ -228,7 +250,7 @@ page_fault (struct intr_frame *f)
 	        {
 		  kill_process(f);		
 		}
-	     printf("Stack pointer %x fault_addr %x\n", (uint32_t)f->esp, (uint32_t)fault_addr);
+	     //printf("Stack pointer %x fault_addr %x\n", (uint32_t)f->esp, (uint32_t)fault_addr);
 	     void * kaddr = get_frame(PAL_USER | PAL_ZERO);
 	     pagedir_set_page (t->pagedir, fault_page, kaddr, true);
 	     struct page * stack_page = create_page (kaddr, STACK_PAGE);
@@ -241,6 +263,16 @@ page_fault (struct intr_frame *f)
 	     ASSERT(0);
 	   }
        }
+    }
+    else /*Kernel Mode page fault exception */
+    {
+        struct page *fpage = page_lookup((void *)fault_addr);
+        printf("<PF> Kernel Exception called with Faulty address"
+		" %x user %d write %d flags %d pagedir %x writable %d\n", 
+		(uint32_t)fault_addr, user, write, fpage->flags, 
+		(uint32_t)pagedir_get_page(t->pagedir, fault_page),
+		fpage->writable);
+	//ASSERT(0)
     }
   
 }

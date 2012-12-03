@@ -5,13 +5,14 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "filesys/off_t.h"
+#include "threads/thread.h"
 #define NEW_PAGE 1 
 #define UNMAPPED_PAGE 2
 #define ZERO_PAGE 4
 #define FILE_READ_PAGE 8
 #define FILE_READ_PARTIAL 16
 #define STACK_PAGE 32
-
+#define MMAP_PAGE 64
 #define STACK_START ((void *) LOADER_PHYS_BASE)
 #define STACK_LIMIT ((uint8_t *) STACK_END)
 #define STACK_END 0xbf800000
@@ -20,7 +21,6 @@
    Each thread has its own supplemental page table (spt)
    spt keeps track of all pages accessed/modified by thread
 */
-
 struct sup_page_table {
    /* Current thread's pdbr (CR3) */
    uint8_t pd;
@@ -48,6 +48,9 @@ struct page
    /* pointer to a file (if any) the page will access*/
    off_t ofs;
    bool writable;
+   int mapid;
+   struct file * mmap_file;
+   size_t read_bytes;
 };
 
  struct page * create_page(void *addr, int flags);
@@ -57,9 +60,10 @@ struct page
  struct page * map_page_to_frame (void *addr, int flags);
  void set_page_accessed (struct page * page);
  void set_page_dirty (struct page * page);
-
  unsigned page_hash (const struct hash_elem *p_, void *aux);
  bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux);
  struct page * page_lookup (void *address);
-
+ void write_page_to_file (struct page * page);
+ void set_page_delete (struct page * page);
+ void delete_set_pages(void);
 #endif

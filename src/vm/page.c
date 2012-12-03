@@ -113,3 +113,15 @@ struct page * page_lookup (void *address)
   return e != NULL ? hash_entry (e, struct page, hash_elem) : NULL;
 }
 
+void write_page_to_file (struct page * page UNUSED)
+{
+}
+
+void set_page_delete (struct page * page UNUSED)
+{
+}
+
+void delete_set_pages ()
+{
+}
+

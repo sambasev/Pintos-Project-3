@@ -33,22 +33,30 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp,
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy;
+  char *fn_copy, *process_name;
   tid_t tid;
-  /* Make a copy of FILE_NAME.
+  /* Make a copy of FILE_NAME and use this for thread_create because 
+     start_process modifies this in strtok_r.
      Otherwise there's a race between the caller and load(). */
-  //Get a kernel page
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
+  /* process_name contains name of thread being created and can be freed 
+     whereas fn_copy cannot be freed because it is modified in start_process. 
+  */
+  process_name = palloc_get_page (0);
+  if (process_name == NULL)
+    return TID_ERROR;
+  strlcpy (process_name, file_name, PGSIZE);
+  
   // Get parsed file name
   char *save_ptr;
-  file_name = strtok_r((char *) file_name, " ", &save_ptr);
+  process_name = strtok_r((char *) process_name, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (process_name, PRI_DEFAULT, start_process, fn_copy);
+  palloc_free_page (process_name);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -80,7 +88,6 @@ start_process (void *file_name_)
   else
     {
       thread_current()->cp->load = LOAD_FAIL;
-      ASSERT(0);
     }
   sema_up(&thread_current()->cp->load_sema);
   /* If load failed, quit. */
@@ -292,7 +299,6 @@ load (const char *file_name, void (**eip) (void), void **esp,
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", (char *)file_name);
-      ASSERT(0);
       goto done; 
     }
   file_deny_write(file);
@@ -642,6 +648,21 @@ int process_add_file (struct file *f)
   return pf->fd;
 }
 
+int process_add_mapped_file (struct file *f, int mapid)
+{
+  struct process_file *pf = malloc(sizeof(struct process_file));
+  if (!pf)
+    {
+      return ERROR;
+    }
+  pf->file = f;
+  pf->fd = thread_current()->fd;
+  pf->mapid = mapid;
+  thread_current()->fd++;
+  list_push_back(&thread_current()->file_list, &pf->elem);
+  return pf->fd;
+}
+
 struct file* process_get_file (int fd)
 {
   struct thread *t = thread_current();
@@ -668,7 +689,7 @@ void process_close_file (int fd)
     {
       next = list_next(e);
       struct process_file *pf = list_entry (e, struct process_file, elem);
-      if (fd == pf->fd || fd == CLOSE_ALL)
+      if (((fd == pf->fd)) || fd == CLOSE_ALL)
 	{
 	  file_close(pf->file);
 	  list_remove(&pf->elem);
@@ -677,6 +698,26 @@ void process_close_file (int fd)
 	    {
 	      return;
 	    }
+	}
+      e = next;
+    }
+}
+
+void process_close_mapped_file (int mapid)
+{
+  struct thread *t = thread_current();
+  struct list_elem *next, *e = list_begin(&t->file_list);
+
+  while (e != list_end (&t->file_list))
+    {
+      next = list_next(e);
+      struct process_file *pf = list_entry (e, struct process_file, elem);
+      if (pf->mapid == mapid)
+	{
+	  file_close(pf->file);
+	  list_remove(&pf->elem);
+	  free(pf);
+	  return;
 	}
       e = next;
     }
